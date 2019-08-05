@@ -4,7 +4,7 @@ require 'fileutils'
 require 'cfn-nag/util/git.rb'
 require 'docker'
 
-GEM_DIR = '~/.gem'
+GEM_CREDENTIALS = '~/.gem/credentials'
 REPO_DIR = '.'
 
 private
@@ -14,10 +14,11 @@ def validate_env
   ENV.fetch('docker_user')
   ENV.fetch('docker_password')
 rescue StandardError => exception
-  abort("Error: #{exception}")
+  raise 'Environment variable not set'
 end
 
 def build_gem(gem_version)
+  File.open(GEM_CREDENTIALS, 'w', 0o600) { |file| file.write ":rubygems_api_key: #{rubygems_api_key}" }
   system('gem build cfn-nag.gemspec')
   system("gem push cfn-nag-#{gem_version}.gem")
 end
@@ -36,6 +37,8 @@ end
 def update_changelog
   system('node node_modules/auto-changelog/lib/index.js --template changelog-template.hbs')
   git_update_changelog
+rescue StandardError => exception
+  abort("Update changelog error:  #{exception}")
 end
 
 validate_env
